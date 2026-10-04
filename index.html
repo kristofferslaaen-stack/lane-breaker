@@ -3870,7 +3870,7 @@ buildStart(); newGame(); resize(); requestAnimationFrame(frame);
 (function demo(){ const s=G.sides[0]; for (let i=0;i<6;i++) place(s, s.roster[i%3], 6+i*3, 2+(i%2)*3); s.gold=R.startGold; drawGrid(); })();
 
 </script>
-<script>window.ASSET_BASE=""; window.GLB_LIST=["h000", "h001", "h002", "h003", "h006", "h007", "h008", "h009", "h00A", "h01P", "h01Q"]; window.PORTRAIT_LIST=["h000", "h001", "h002", "h003", "h006", "h007", "h008", "h009", "h00A", "h01P", "h01Q"]; window.SFX_LIST=["bigboom_0", "bigboom_1", "boom_0", "boom_1", "boom_2", "cloth_0", "cloth_1", "coin_0", "coin_1", "gunx_0", "gunx_1", "heavy_0", "heavy_1", "magic_0", "magic_1", "magic_2", "metal_000", "metal_001", "metal_002", "metal_003", "page_0", "page_1", "place_0", "place_1", "plate_000", "plate_001", "plate_002", "punch_000", "punch_001", "punch_002", "soft_000", "soft_001", "soft_002", "swish_0", "swish_1", "swish_2", "swish_3", "wood_000", "wood_001", "wood_002"];</script>
+<script>window.ASSET_BASE=""; window.GLB_LIST=["h000", "h001", "h002", "h003", "h006", "h007", "h008", "h009", "h00A", "h01P", "h01Q"]; window.PORTRAIT_LIST=["h000", "h001", "h002", "h003", "h006", "h007", "h008", "h009", "h00A", "h01P", "h01Q"]; window.SFX_LIST=["bigboom_0", "bigboom_1", "boom_0", "boom_1", "boom_2", "cloth_0", "cloth_1", "coin_0", "coin_1", "gunx_0", "gunx_1", "heavy_0", "heavy_1", "magic_0", "magic_1", "magic_2", "metal_0", "metal_1", "metal_2", "metal_3", "page_0", "page_1", "place_0", "place_1", "plate_0", "plate_1", "plate_2", "punch_0", "punch_1", "punch_2", "soft_0", "soft_1", "soft_2", "swish_0", "swish_1", "swish_2", "swish_3", "wood_0", "wood_1", "wood_2"];</script>
 <script type="module">
 import * as THREE from 'three';
 import {EffectComposer} from 'three/addons/postprocessing/EffectComposer.js';
@@ -5766,6 +5766,7 @@ renderer.outputColorSpace = THREE.SRGBColorSpace;
 renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = .92;
 renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 const LOWQ = /Android|iPhone|iPad/.test(navigator.userAgent) && (window.devicePixelRatio||1) > 2.5;
+const WEB_HQ = !!window.GLB_LIST;   /* the GitHub build: no size budget, so render sharper on phones */
 const scene = new THREE.Scene();
 scene.background = new THREE.Color('#1a2a1c');
 scene.fog = new THREE.Fog('#223a2c', 7000, 16000);
@@ -6320,7 +6321,7 @@ let qAcc=0, qN=0, qLevel=0, OUTLINES_ON=true;
 R3.forceQ=(l)=>setQ(l); R3.qLevel=()=>qLevel;
 // adaptive quality with four steps that can also recover. Frames are only measured once the scene has settled:
 // not during the first seconds, not while many sculpt jobs are still baking, and not while the tab is hidden.
-function dprFor(l){ const d=Math.min(LOWQ?1.5:2, window.devicePixelRatio||1); return l===0 ? d : l===1 ? Math.min(d,1.5) : 1; }
+function dprFor(l){ const d=Math.min(LOWQ&&!WEB_HQ?1.5:2, window.devicePixelRatio||1); return l===0 ? d : l===1 ? Math.min(d,1.5) : 1; }
 function setQ(l){ l=Math.max(0,Math.min(3,l)); if (l===qLevel) return; qLevel=l;
   bloom.enabled = l<2; const outl = l<3; if (outl!==OUTLINES_ON || renderer.shadowMap.enabled!==outl){ OUTLINES_ON=outl; renderer.shadowMap.enabled=outl;
     scene.traverse(o=>{ if (o.material){ (Array.isArray(o.material)?o.material:[o.material]).forEach(m=>m.needsUpdate=true); } }); for (const b of BLD.values()) if (b.sh.light) b.sh.light.visible = outl && !LOWQ; }
