@@ -3886,7 +3886,7 @@ buildStart(); newGame(); resize(); requestAnimationFrame(frame);
 (function demo(){ const s=G.sides[0]; for (let i=0;i<6;i++) place(s, s.roster[i%3], 6+i*3, 2+(i%2)*3); s.gold=R.startGold; drawGrid(); })();
 
 </script>
-<script>window.ASSET_BASE=""; window.GLB_LIST=["h000", "h001", "h002", "h003", "h006", "h007", "h008", "h009", "h00A", "h01P", "h01Q"]; window.PORTRAIT_LIST=["h000", "h001", "h002", "h003", "h006", "h007", "h008", "h009", "h00A", "h01P", "h01Q"]; window.SFX_LIST=["bigboom_0", "bigboom_1", "boom_0", "boom_1", "boom_2", "cloth_0", "cloth_1", "coin_0", "coin_1", "gunx_0", "gunx_1", "heavy_0", "heavy_1", "magic_0", "magic_1", "magic_2", "metal_0", "metal_1", "metal_2", "metal_3", "page_0", "page_1", "place_0", "place_1", "plate_0", "plate_1", "plate_2", "punch_0", "punch_1", "punch_2", "soft_0", "soft_1", "soft_2", "swish_0", "swish_1", "swish_2", "swish_3", "wood_0", "wood_1", "wood_2"];</script>
+<script>window.ASSET_BASE=""; window.GLB_LIST=["h000", "h001", "h002", "h003", "h006", "h007", "h008", "h009", "h00A", "h01P", "h01Q", "nexus"]; window.PORTRAIT_LIST=["h000", "h001", "h002", "h003", "h006", "h007", "h008", "h009", "h00A", "h01P", "h01Q"]; window.SFX_LIST=["bigboom_0", "bigboom_1", "boom_0", "boom_1", "boom_2", "cloth_0", "cloth_1", "coin_0", "coin_1", "gunx_0", "gunx_1", "heavy_0", "heavy_1", "magic_0", "magic_1", "magic_2", "metal_0", "metal_1", "metal_2", "metal_3", "page_0", "page_1", "place_0", "place_1", "plate_0", "plate_1", "plate_2", "punch_0", "punch_1", "punch_2", "soft_0", "soft_1", "soft_2", "swish_0", "swish_1", "swish_2", "swish_3", "wood_0", "wood_1", "wood_2"];</script>
 <script type="module">
 import * as THREE from 'three';
 import {EffectComposer} from 'three/addons/postprocessing/EffectComposer.js';
@@ -6368,13 +6368,20 @@ R3.frame = function(){
     const alive = !u.dead && G.units.includes(u);
     if (b.nex && alive && b.sh.t2){ const tier=Math.max(1,...G.sides.filter(s=>s.team===u.team).map(s=>s.tier||1));
       if (b.tier && tier>b.tier && !G.headless){ G.fx.push({x:u.x,y:u.y,r:520,t:0,kind:'star'}); G.fx.push({x:u.x,y:u.y,r:420,t:0,kind:'holy'}); if (u.team===0 && typeof SND!=='undefined') SND.play('level'); b.pop=1; }
-      b.tier=tier; b.sh.t2.visible=tier>=2; b.sh.t3.visible=tier>=3;
+      b.tier=tier; b.sh.t2.visible=tier>=2 && !b.glb; b.sh.t3.visible=tier>=3 && !b.glb;
+      // the citadel model (Meshy) replaces the primitive keep once loaded; lights, beam and rune ring stay
+      const gn=GLB[tier>=3 && GLB.nexus3 ? 'nexus3' : 'nexus'];
+      if (gn && b.glb!==gn){ if (b.glbGrp) b.grp.remove(b.glbGrp);
+        const keep=new Set([b.sh.rune, b.sh.beam, b.sh.light]); for (const c of b.grp.children) if (!keep.has(c)) c.visible=false;
+        const g2=new THREE.Group(), k=1000/Math.max(1e-3,gn.Wd); g2.scale.setScalar(k);
+        for (const p of gn.parts){ const mat=p.mat.clone(); if ('envMapIntensity' in mat) mat.envMapIntensity=.55; if (u.team) mat.color=mat.color.clone().multiply(new THREE.Color(1,.72,.66)); const m=new THREE.Mesh(p.geo,mat); m.castShadow=true; m.receiveShadow=true; g2.add(m); }
+        b.grp.add(g2); b.glbGrp=g2; b.glb=gn; b.sh.crystal.visible=false; }
       const tgt=.66*(1+.07*(tier-1)); b.pop=Math.max(0,(b.pop||0)-.02); const cur=b.grp.scale.x; b.grp.scale.setScalar(cur+(tgt*(1+.08*Math.sin((1-b.pop)*Math.PI)*b.pop)-cur)*.08); }
     const sh=b.sh, t=G.t+u.id*3;
     if (alive){ const frac=u.hp/u.maxhp, flick = frac<.3 ? .5+.5*Math.abs(Math.sin(G.t*9+u.id*5)) : 1;
       sh.crystal.position.y = sh.cy + Math.sin(t*2)*20; sh.crystal.rotation.y = t*.6; sh.crystal.material.emissiveIntensity = (1.6+Math.sin(t*3)*.3)*flick + (u.flash>0?2:0);
       sh.shards.forEach((s,i)=>{ const a=t*1.4+i*Math.PI*2/sh.shards.length; const R0=b.nex?190:105; s.position.set(Math.cos(a)*R0, sh.cy+Math.sin(a*1.3)*30, Math.sin(a)*R0); s.rotation.y=a*2; });
-      sh.rune.rotation.z = G.t*.25*(u.team?1:-1); if (sh.light) sh.light.intensity=(b.nex?800:420)*flick*(LOWQ?0:1); if (sh.beam) sh.beam.material.opacity=.14+.08*Math.sin(G.t*2);
+      sh.rune.rotation.z = G.t*.25*(u.team?1:-1); if (sh.light) sh.light.intensity=(b.nex?800:420)*flick*(LOWQ?0:1)*(b.glb?.12:1); if (sh.beam) sh.beam.material.opacity=.14+.08*Math.sin(G.t*2);
       b.grp.traverse(o=>{ if (o.userData.banner) o.rotation.z = Math.sin(G.t*1.6+o.position.x)*.06; });
       list.push([u,{}]);
     } else if (!b.dead){ b.dead=G.t; sh.crystal.visible=false; sh.shards.forEach(s=>s.visible=false); if (sh.light) sh.light.visible=false; if (sh.beam) sh.beam.visible=false; }
@@ -6668,7 +6675,7 @@ function poseGLB(u, g, M, a, dt){
   writeGLB(g, u.x, u.y, alt+(g.anim?bob*.5:(isM?mZ:bob)), u._yaw, k, (g.anim?lunge*.12:(isM?mPitch:lunge*.28)) + (fly ? .12 : 0) - flinch*(isM?.05:.28), g.anim?roll*.4:(isM?0:roll), (g.anim? step*12 : (isM?mFwd*.5:lunge*16)) - flinch*(isM?2:10), rph, mv, atk, u._var||0, u.team);
   return {S, alt, fly};
 }
-R3.glbDebug=()=>JSON.stringify(Object.entries(GLB).map(([id,g])=>{ const a=artFor({def:D.factions.flatMap(f=>f.units).find(u=>u.id===id)}); const M=modelFor(a,2); const S=uScale({},a,M); const bb=new THREE.Box3(); for (const p of g.parts){ p.geo.computeBoundingBox(); bb.union(p.geo.boundingBox); } return {id, k:a.k, H:+g.H.toFixed(3), Mh:M.h, S:+S.toFixed(1), box:[bb.min.toArray().map(v=>+v.toFixed(2)), bb.max.toArray().map(v=>+v.toFixed(2))]}; }));
+R3.glbDebug=()=>JSON.stringify(Object.entries(GLB).map(([id,g])=>{ const ud=D.factions.flatMap(f=>f.units).find(u=>u.id===id); if (!ud) return {id, H:+g.H.toFixed(3)}; const a=artFor({def:ud}); const M=modelFor(a,2); const S=uScale({},a,M); const bb=new THREE.Box3(); for (const p of g.parts){ p.geo.computeBoundingBox(); bb.union(p.geo.boundingBox); } return {id, k:a.k, H:+g.H.toFixed(3), Mh:M.h, S:+S.toFixed(1), box:[bb.min.toArray().map(v=>+v.toFixed(2)), bb.max.toArray().map(v=>+v.toFixed(2))]}; }));
 // debug: render one rigged model from the side at a given (phase, stride, attack); returns a data URL
 R3.rigShot=function(id, ph, st, at, yaw=Math.PI/2){ const g=GLB[id]; if (!g||!g.anim) return null; prInit();
   const grp=new THREE.Group(); const an=new THREE.InstancedBufferAttribute(new Float32Array([ph,st,at,R3._vr||0]),4);

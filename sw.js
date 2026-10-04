@@ -1,5 +1,5 @@
 // cache-first for the heavy, rarely changing assets; network-first for the page itself so updates arrive
-const C='lb-1791116977';
+const C='lb-1791139611';
 self.addEventListener('install', e=>self.skipWaiting());
 self.addEventListener('activate', e=>e.waitUntil(caches.keys().then(ks=>Promise.all(ks.filter(k=>k!==C && k.startsWith('lb-')).map(k=>caches.delete(k)))).then(()=>self.clients.claim())));
 self.addEventListener('fetch', e=>{ const u=new URL(e.request.url); if (e.request.method!=='GET') return;
