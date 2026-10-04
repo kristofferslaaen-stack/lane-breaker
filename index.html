@@ -1,6 +1,15 @@
 <!DOCTYPE html>
 <meta charset="utf-8">
 <title>Lanebreaker</title>
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-180.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Lanebreaker">
+<meta name="theme-color" content="#05090d">
+<script>if ('serviceWorker' in navigator) addEventListener('load', ()=>navigator.serviceWorker.register('sw.js').catch(()=>{}));</script>
+
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700;800&family=Barlow:wght@400;500;600;700&display=swap">
 <script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"}}</script>
@@ -548,6 +557,11 @@ body{background:var(--night)}
 /* hero type */
 .pri{font:700 10px/1 var(--body);padding:2px 6px;border-radius:8px;vertical-align:middle;letter-spacing:.02em;text-transform:none}
 .pri-STR{background:#7a2a20;color:#ffc9b8} .pri-AGI{background:#1f5a2a;color:#c4f5c0} .pri-INT{background:#22407a;color:#c6dbff}
+/* model loading progress on the start screen */
+#loadBar{width:min(320px,70vw);margin:10px auto 0;position:relative;height:18px;border-radius:9px;background:rgba(255,255,255,.08);overflow:hidden;border:1px solid rgba(216,179,94,.4)}
+#loadBar[hidden]{display:none}
+#loadBar i{position:absolute;left:0;top:0;bottom:0;width:0;background:linear-gradient(90deg,#9a6f22,#f2d58a);transition:width .3s}
+#loadBar span{position:relative;display:block;text-align:center;font:600 11px/18px var(--body);color:#fff;text-shadow:0 1px 2px #000}
 /* first-time tips */
 #coach[hidden]{display:none!important}
 #coach{position:absolute;left:50%;top:44px;transform:translateX(-50%);z-index:8;max-width:min(520px,70%);display:flex;align-items:center;gap:10px;padding:7px 8px 7px 12px;border-radius:12px;background:linear-gradient(180deg,rgba(20,36,50,.96),rgba(8,16,24,.96));border:1.5px solid #c9a24e;box-shadow:0 6px 20px rgba(0,0,0,.55),0 0 18px rgba(242,201,76,.25);font-size:12.5px;line-height:1.3;color:#e8eef2}
@@ -718,6 +732,7 @@ button,.bld,.card,#panel,#shop,#info,#campHead,#zoomUI{touch-action:manipulation
     <button class="opt" data-d="hard">Hard AI</button>
   </div>
   <button class="go" id="goBtn">March</button>
+  <div id="loadBar" hidden><i></i><span>Loading</span></div>
   <div class="rules">
     <b>How it works.</b> Units you buy stay in your camp. Every 35 s a copy of your camp marches in the same formation and fights for up to 130 s. Drag units in the camp to rearrange them.
     In 3 vs 3 your team takes turns: one player per team marches each wave. You earn 100 gold per 20 s; each Gold Extractor adds 10 and holding the middle counts as one more.
@@ -3176,6 +3191,7 @@ function setTab(t){ const was=tab; tab=t; if (was!==t) SND.play('tab'); for (con
 // the shop drawer opens when a house is tapped and closes again when the same house is tapped
 function panelOpen(on){ const p=$('panel'); const was=!p.classList.contains('closed'); if (on===was) return; SND.play(on?'open':'close'); p.classList.toggle('closed',!on); requestAnimationFrame(resize); setTimeout(resize,120); }
 function houseTap(t){ if (t==='units' && view!=='camp'){ setTab('units'); showGrid(true); return; } const open=!$('panel').classList.contains('closed'); if (open && tab===t){ panelOpen(false); return; } setTab(t); panelOpen(true); }
+window.onModelProgress=(d,n)=>{ const b=document.getElementById('loadBar'); if (!b) return; b.hidden = d>=n; b.querySelector('i').style.width=(100*d/Math.max(1,n))+'%'; b.querySelector('span').textContent=`Loading 3D models ${d}/${n}`; };
 let uiHold=0; const uiBusy=()=>performance.now()<uiHold;
 for (const id of ['panel','info','heroPop']){ const el=document.getElementById(id); if (el) el.addEventListener('pointerdown', ()=>{ uiHold=performance.now()+900; }, {capture:true, passive:true}); }
 function fastTap(el, fn){ if (!el) return; let st=null;
@@ -6511,7 +6527,7 @@ const GLB={}; const GLB_CAP=48;
   // iOS web views (the Claude app) can fail ImageBitmap texture decoding and leave models white; hide it so the
   // loader falls back to plain <img> textures, which work everywhere
   const cib=window.createImageBitmap; try { window.createImageBitmap=undefined; } catch(e){}
-  const L=new GLTFLoader(); L.setMeshoptDecoder(MeshoptDecoder);
+  const L=new GLTFLoader(); L.setMeshoptDecoder(MeshoptDecoder); let done=0; const prog=()=>{ R3.modelProgress=[done,ids.length]; if (window.onModelProgress) onModelProgress(done,ids.length); }; prog();
   for (const id of ids){ try {
       const buf = data[id] ? Uint8Array.from(atob(data[id]), c=>c.charCodeAt(0)).buffer : await (await fetch((window.ASSET_BASE||'')+'models/'+id+'.glb')).arrayBuffer();
       const g=await L.parseAsync(buf,'');
@@ -6527,7 +6543,7 @@ const GLB={}; const GLB_CAP=48;
       const ims=parts.map(p=>{ let geo=p.geo, mat=p.mat; if (rigged){ geo=p.geo.clone(); geo.setAttribute('iAnim',anim); mat=rigMaterial(p.mat,Hm,style,piv); } const m=new THREE.InstancedMesh(geo,mat,GLB_CAP); m.count=0; m.castShadow=true; m.receiveShadow=true; m.frustumCulled=false; scene.add(m); return m; });
       const fb=new THREE.Box3(); for (const p of parts){ p.geo.computeBoundingBox(); fb.union(p.geo.boundingBox); }
       GLB[id]={parts, ims, H:Hm, Wd:Math.max(fb.max.x-fb.min.x, fb.max.z-fb.min.z), n:0, anim, kind};
-    } catch(e){ console.warn('model', id, e); } }
+    } catch(e){ console.warn('model', id, e); } done++; prog(); }
   try { window.createImageBitmap=cib; } catch(e){}
   PORT.clear(); BUST.clear();   /* full-figure portraits made before the models arrived are stale */
   if (window.onBustsChanged) setTimeout(()=>onBustsChanged(), 60);
